@@ -12,21 +12,41 @@ DeepSeek Harness 的 Windows 电脑操控插件。设计目标不是"再加一�
 
 本插件 = 那套契约 + 缺的那几层 + DSH 原生工具面。
 
-## 九个工具
+## 工具（core 7 / full 11）
 
-| 工具 | 作用 |
-|---|---|
-| `cu_status` | 驱动路径/运行态、输入层、OCR、能力表、提权状态、收据路径 |
-| `cu_observe` | 窗口列表 + 目标窗口无障碍树，compact 短引用 `uia:rN`，绑 `observationId` |
-| `cu_capture` | 窗口/显示器/区域截图存盘，PrintWindow 后台优先，返回路径与尺寸 |
-| `cu_ocr` | WinRT OCR，返回行级 + 词级像素坐标（中文可用） |
-| `cu_act` | **统一动作入口**：invoke / set_value / type / hotkey / click / scroll / focus / wait，带 postcondition 与收据 |
-| `cu_sequence` | ≤10 步串行编排，首步失败即停，省模型往返 |
-| `cu_monitors` | 显示器列表 + 推荐 agent 屏（避开用户当前屏） |
-| `cu_place_window` | 把窗口投到 agent 屏，**不激活** |
-| `cu_receipts` | 回读收据：做了什么、为什么、输入模式、outcome、验证证据 |
+默认 `toolset: 'core'` 只注册 7 个工具，省上下文；需要编排与多屏时把配置改成 `full`。
 
-工具数刻意压在 9 个：市场里 23 工具的版本让模型选择成本变高，而 8 工具的版本又缺编排与 OCR。
+| 工具 | 组 | 作用 |
+|---|---|---|
+| `cu_status` | core | 驱动/输入层/OCR 状态、能力表、守卫配置、被跳过的工具 |
+| `cu_observe` | core | 窗口列表 + 无障碍树，短引用 `uia:rN`，绑 `observationId`，记录身份与树指纹 |
+| `cu_capture` | core | 窗口/显示器/区域截图存盘，PrintWindow 后台优先，顺带回填像素指纹 |
+| `cu_ocr` | core | WinRT OCR，行级 + 词级像素坐标（中文可用） |
+| `cu_act` | core | **统一动作入口**：invoke / set_value / type / hotkey / click / scroll / focus / wait |
+| `cu_abort` | core | 急停开关；置位后所有写动作 `HALTED_BEFORE_EFFECT`，只读工具照常 |
+| `cu_guard` | core | 解释守卫：作用域、TTL、指纹、急停状态；可测试某个标签是否危险/是否凭据字段 |
+| `cu_sequence` | full | ≤10 步串行编排，首步失败即停 |
+| `cu_monitors` | full | 显示器列表 + 推荐 agent 屏 |
+| `cu_place_window` | full | 把窗口投到 agent 屏，**不激活** |
+| `cu_receipts` | full | 回读收据 |
+
+## 守卫与新鲜度（v0.2.0）
+
+动作执行前多过两道闸，任一不过都是 `HALTED_BEFORE_EFFECT`，不会静默成功：
+
+**守卫**（源自市场的两类实现，做成可解释的判定）
+- 应用作用域 `allowedApps`：窗口名/类名/pid 不在白名单直接拒绝
+- 凭据字段：`password`/`密码`/`token`/`api_key` 命名的目标，`type` 与 `set_value` 一律拒绝
+- 危险标签：删除/清空/支付/转账/退出登录 等中英文词命中时要求 `approved: true`，不是默默拦掉
+
+**新鲜度边界**（机制取自 dsh-click 的三重校验）
+- 身份：pid + 类名 + 几何 + 标题
+- 树：元素序列的 sha256
+- 像素：可选，默认**关闭**——闪烁光标、时钟、动画会让每次截图字节都不同
+- TTL 默认 30 秒；过期即拒，要求重新 `cu_observe`
+- 没有观测记录直接拒绝动手（禁止盲操作）
+
+**动作后静止检测**：写动作完成后轮询截图直到画面不再变化（最多 2.5 秒），避免把半渲染帧当成 postcondition 失败。
 
 ## 设计契约
 
@@ -63,20 +83,27 @@ dsh plugin --profile desktop add ./dsh-kv-computer-use-0.1.0.tgz
 ## 验证
 
 ```bash
-node test/smoke.mjs
+node test/layers.mjs    # 守卫规则 + 新鲜度边界（纯逻辑，30+ 断言）
+node test/smoke.mjs     # driver 真机：status / observe / ref 映射 / postcondition / 收据
+node test/harness.mjs   # fake ctx 挂载：工具集、拒绝路径、急停、守卫自省
+node test/live.mjs      # 真机成功路径：自建 WPF 夹具窗口 → 后台写入 → value_equals 验证
 ```
 
-覆盖：契约分类、envelope 校验（含 requireBackground 拒绝与风险降级拒绝）、真实 driver status/observe、短引用→真 runtimeId 映射、postcondition 的 `element_exists`/`element_absent`、收据往返。不动鼠标键盘。
+`live.mjs` 只操作自己启动的夹具窗口（`test/fixture-wpf.ps1`），用完按 pid 关掉，绝不碰用户的编辑器或其他窗口。
+
+实测（本机 Windows，2026-10-21）：后台 `set_value` 写入 WPF TextBox **229ms**，中文无碍，`value_equals` 判定 VERIFIED，capture 返回 `print-window`/`occlusionRisk=false`。
 
 ## 已知限制
 
 - 只支持 Windows。
-- 输入层每次调用约 **1.4 秒**（PowerShell 启动 + 加载缓存 DLL）。DLL 首次编译约 0.4 秒。没有做常驻进程。
+- **`set_value` 依赖 UIA ValuePattern**。WPF TextBox、Win32 Edit、多数 UWP 控件都有；**WinForms TextBox 只有 TextPattern**，会报 `does not expose ValuePattern`（实测）。这类控件要用 `type`（会抢焦点）。
+- 输入层每次调用约 **1.4 秒**（PowerShell 启动 + 加载缓存 DLL），DLL 首次编译约 0.4 秒。没有做常驻进程。
 - OCR 每张约 **1.9 秒**（PS 启动 + WinRT 解码）。
-- `uia:rN` 短引用靠 driver 的 runtime-id 重定位，窗口内容大改后可能失效；收据会带 `observationId` 供排查。
+- 像素级陈旧检测默认关闭（闪烁光标/动画会误报），可开 `staleCheckPixels: true` 用于静态界面。
+- `uia:rN` 短引用只在一次观测内有效；跨观测验证请用 `name` / `automationId`。
 - 没有视觉理解：截图只能交给 `cu_ocr` 或模型自身的图像通道。插件不替模型"看图"。
-- 多屏投放（`cu_place_window`）在本机双屏未做端到端实测，仅验证了 `list_monitors` 返回结构。
-- 未在桌面端 0.2.1-rc.2 上跑过完整加载验证（需要重启宿主）。
+- 多屏投放（`cu_place_window`）只在单机上验证了 `list_monitors` 返回结构，未做双屏端到端。
+- 未在桌面端 0.2.1-rc.2 上跑过真实加载（需要重启宿主）；模块加载与 peer 解析已验证。
 
 ## 许可
 
