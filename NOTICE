@@ -1,0 +1,31 @@
+Third-party notices
+===================
+
+Windows UIA execution engine (kv-windows-uia-driver.exe)
+--------------------------------------------------------
+This plugin spawns the prebuilt driver produced by the KV Computer Use project
+(D:\Users\kvxkf\Documents\自动化发布社媒工作空间\kv-browser-bridge-action-seq-20260811,
+apps/windows-uia-driver). The driver is not bundled here; it is discovered at
+runtime and reused as-is.
+
+Upstream license: MIT
+Copyright (c) 2026 Fineguide.AI
+
+The action contract layer in lib/contracts.js (risk levels, input modes,
+postcondition kinds, five-state outcome, envelope validation rules) is a
+JavaScript port of the protocol defined by the same project
+(apps/codex-mcp-server/src/computer-contracts.ts), kept behaviourally identical
+so receipts from both surfaces stay comparable.
+
+Design references (no code copied)
+----------------------------------
+- dsh-click (PerryLink, Apache-2.0): observation-scoped action references and
+  the "never steal foreground focus" default.
+- dsh-computer-use-win (Yu-tao-Li): WinRT OCR as the path for text-only models.
+- @copylee/dsh-computer-use: compiling the input helper once with the in-box
+  .NET Framework csc.exe instead of shipping a native addon.
+- @bhzhangsun/dsh-computer-use: background-first capture reasoning.
+
+Windows APIs used through the in-box .NET Framework / PowerShell:
+  user32.dll SendInput, SetCursorPos, GetForegroundWindow
+  Windows.Media.Ocr (WinRT)

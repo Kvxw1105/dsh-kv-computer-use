@@ -1,0 +1,7 @@
+# dsh-kv-computer-use bundle patch
+#
+# Installed through the official CLI or a dependency link:
+#   dsh plugin --profile desktop add dsh-kv-computer-use
+- insert:
+    - id: kv-computer-use
+      name: 'dsh-kv-computer-use'
