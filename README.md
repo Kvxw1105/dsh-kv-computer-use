@@ -12,14 +12,15 @@ DeepSeek Harness 的 Windows 电脑操控插件。设计目标不是"再加一�
 
 本插件 = 那套契约 + 缺的那几层 + DSH 原生工具面。
 
-## 工具（core 8 / full 12）
+## 工具（core 9 / full 13）
 
-默认 `toolset: 'core'` 只注册 8 个工具，省上下文；需要编排与多屏时把配置改成 `full`。
+默认 `toolset: 'core'` 只注册 9 个工具，省上下文；需要编排与多屏时把配置改成 `full`。
 
 | 工具 | 组 | 作用 |
 |---|---|---|
 | `cu_status` | core | 驱动/输入层/OCR 状态、能力表、守卫配置、被跳过的工具 |
 | `cu_observe` | core | 窗口列表 + 无障碍树，短引用 `uia:rN`，绑 `observationId`，记录身份与树指纹 |
+| `cu_find` | core | 按 name / automationId / controlType / value / 正则搜元素，只返回命中项和新 ref |
 | `cu_capture` | core | 窗口/显示器/区域截图存盘，PrintWindow 后台优先，顺带回填像素指纹 |
 | `cu_ocr` | core | WinRT OCR，行级 + 词级像素坐标（中文可用） |
 | `cu_read` | core | 读控件文本：TextPattern → ValuePattern → WM_GETTEXT，不依赖渲染 |
@@ -46,6 +47,14 @@ DeepSeek Harness 的 Windows 电脑操控插件。设计目标不是"再加一�
 3. `WM_GETTEXT` — 兜底，只要有原生句柄就能读
 
 这条链让"没有 value 字段的控件"不再是盲区：`cu_observe` 看不到内容时，`cu_read` 能拿到文本，而且不依赖屏幕渲染（锁屏、遮挡、远程桌面下依然有效）。
+
+## 观察层（v0.5.0）
+
+**按条件找元素，不要整棵树**。`cu_find` 在目标窗口里按字段搜索，返回命中元素的短引用和 observationId——这些 ref 可以直接喂给 `cu_act`，不需要再 observe 一次。九个元素的窗口里找按钮，比读全树省一个数量级的 token。
+
+**树没用就自动看像素**。`cu_observe` 会判断树是否"稀疏"：元素少于 8 个、或没有一个可交互元素、或带名字的元素占比低于 30%。命中任一条件时，自动截图并 OCR，把文本行和锚点坐标一起返回（`ocr.lines`）。判据是"这棵树对模型还有没有用"，不是"能不能 OCR"——正常的窗口不会为此多付 2 秒。
+
+`autoOcr` 可显式设 `on`（总是）或 `off`（从不）。
 
 ## 守卫与新鲜度（v0.2.0）
 
@@ -107,6 +116,7 @@ node test/live.mjs          # WPF 夹具：ValuePattern 后台写入 + value_equ
 node test/live-settext.mjs  # WinForms 夹具：无 ValuePattern → WM_SETTEXT 兜底 → 原生读回 + cu_read
 node test/live-type.mjs     # 焦点守卫 + 前台锁行为（诚实报告未验证）
 node test/latency.mjs       # 输入层一次性 vs 守护进程延迟对比
+node test/observe.mjs       # cu_find 搜索 + OCR 兜底触发判据
 ```
 
 `live*.mjs` 只操作自己启动的夹具窗口（`test/fixture-wpf.ps1` / `test/fixture.ps1`），用完按 pid 关掉，绝不碰用户的编辑器或其他窗口。
