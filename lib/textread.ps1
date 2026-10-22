@@ -78,28 +78,38 @@ try {
     $text = $null
     $method = $null
 
+    # Each rung only wins if it actually produced text. A pattern that answers with
+    # an empty string must NOT stop the ladder: WPF TextBox exposes TextPattern but
+    # DocumentRange.GetText() returns "" there, which would hide the real contents
+    # that WM_GETTEXT can still read.
     # 1) TextPattern: the richest source for document-like controls.
     try {
         $pattern = $null
         if ($target.TryGetCurrentPattern([System.Windows.Automation.TextPattern]::Pattern, [ref]$pattern)) {
-            $text = $pattern.DocumentRange.GetText($MaxChars)
-            $method = 'TextPattern'
+            $candidate = $pattern.DocumentRange.GetText($MaxChars)
+            if (-not [string]::IsNullOrEmpty($candidate)) {
+                $text = $candidate
+                $method = 'TextPattern'
+            }
         }
     } catch { }
 
     # 2) ValuePattern: form fields.
-    if ($null -eq $text) {
+    if ([string]::IsNullOrEmpty($text)) {
         try {
             $pattern = $null
             if ($target.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern, [ref]$pattern)) {
-                $text = $pattern.Current.Value
-                $method = 'ValuePattern'
+                $candidate = $pattern.Current.Value
+                if (-not [string]::IsNullOrEmpty($candidate)) {
+                    $text = $candidate
+                    $method = 'ValuePattern'
+                }
             }
         } catch { }
     }
 
     # 3) WM_GETTEXT: last resort through the native handle.
-    if ($null -eq $text) {
+    if ([string]::IsNullOrEmpty($text)) {
         $nativeHandle = $target.Current.NativeWindowHandle
         if ($nativeHandle -ne 0) {
             $box = New-Object System.Text.StringBuilder ($MaxChars + 16)

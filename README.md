@@ -105,6 +105,8 @@ node test/smoke.mjs         # driver 真机：status / observe / ref 映射 / po
 node test/harness.mjs       # fake ctx 挂载：工具集、拒绝路径、急停、守卫自省
 node test/live.mjs          # WPF 夹具：ValuePattern 后台写入 + value_equals
 node test/live-settext.mjs  # WinForms 夹具：无 ValuePattern → WM_SETTEXT 兜底 → 原生读回 + cu_read
+node test/live-type.mjs     # 焦点守卫 + 前台锁行为（诚实报告未验证）
+node test/latency.mjs       # 输入层一次性 vs 守护进程延迟对比
 ```
 
 `live*.mjs` 只操作自己启动的夹具窗口（`test/fixture-wpf.ps1` / `test/fixture.ps1`），用完按 pid 关掉，绝不碰用户的编辑器或其他窗口。
@@ -115,11 +117,28 @@ node test/live-settext.mjs  # WinForms 夹具：无 ValuePattern → WM_SETTEXT 
 - capture 返回 `print-window` / `occlusionRisk=false`
 - 锁屏或远程会话下 PrintWindow 可能返回空白，OCR 不可用（`cu_read` 不受影响）
 
+## 输入性能（v0.4.0）
+
+输入层改由常驻 PowerShell 守护进程承接：helper 只编译一次、只加载一次，之后每个动作是一行 JSON 的往返。
+
+| 路径 | 中位延迟 |
+|---|---|
+| 一次性 PowerShell（旧的） | **1773ms** |
+| 常驻守护进程（现在） | **2ms** |
+
+首次启动约 1.5 秒，空闲 5 分钟自动退出。守护进程起不来时自动回退一次性路径；**mid-flight 超时不重试**，否则一批按键可能被投递两次。
+
+`hotkey` 也修正为真组合键：按住修饰键 → 敲主键 → 逆序释放。之前是逐个"按下+弹起"，`Ctrl+S` 这种根本不生效。
+
 ## 已知限制
 
 - 只支持 Windows。
 - `set_value` 优先 ValuePattern，失败自动退 `WM_SETTEXT`（覆盖 WinForms / 部分 Electron）。两者都没有时才会失败，并保留原始错误码。
-- `WM_SETTEXT` 需要控件有独立原生句柄；无句柄的合成控件（部分浏览器内部输入）仍要退 `type`（会抢焦点）。
+- `WM_SETTEXT` 需要控件有独立原生句柄；无句柄的合成控件（部分浏览器内部输入）仍要退 `type`。
+- **`type` 依赖窗口真正拥有输入焦点**。Windows 的前台锁会让"程序化激活窗口"失败（`FOCUS_REJECTED`），此时窗口可能仍被报告为前台，但按键投递到了别处。因此：
+  - 优先用 `set_value`（后台、不依赖激活）；
+  - `type` 的结果在观察不到控件变化时只会报 `COMPLETED_UNVERIFIED`，绝不报 `VERIFIED`；
+  - `focus` 默认带 `window_focused` 后置条件，激活失败会如实报失败而不是假成功。
 - 输入层每次调用约 **1.4 秒**（PowerShell 启动 + 加载缓存 DLL），DLL 首次编译约 0.4 秒。没有做常驻进程。
 - OCR 每张约 **1.9 秒**（PS 启动 + WinRT 解码）。
 - 像素级陈旧检测默认关闭（闪烁光标/动画会误报），可开 `staleCheckPixels: true` 用于静态界面。
