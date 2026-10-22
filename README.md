@@ -182,6 +182,8 @@ node test/client-channel.mjs # Web UI 通道：state / abort / resume / 停止�
   - `focus` 默认带 `window_focused` 后置条件，激活失败会如实报失败而不是假成功。
 - 输入层每次调用约 **1.4 秒**（PowerShell 启动 + 加载缓存 DLL），DLL 首次编译约 0.4 秒。没有做常驻进程。
 - OCR 每张约 **1.9 秒**（PS 启动 + WinRT 解码）。
+- **树指纹只在相同观测形状下可比**：`cu_find` 用 depth 12 / 2000 元素建指纹，`cu_act` 校验时必须用同一组参数重观测，否则两次元素集不同、每个动作都会被判成 `TREE_CHANGED`。插件的处理是：记录观测形状，校验时照原样重放。
+- `cu_place_window` 会把窗口拉成整个显示器工作区，**driver 协议没有 resize 方法**，插件无法恢复原尺寸。结果里如实给出 `sizeBefore`/`sizeAfter`/`resized`，不假装保持了尺寸。
 - 像素级陈旧检测默认关闭（闪烁光标/动画会误报），可开 `staleCheckPixels: true` 用于静态界面。
 - `uia:rN` 短引用只在一次观测内有效；跨观测验证请用 `name` / `automationId`。
 - 没有视觉理解：截图只能交给 `cu_ocr` 或模型自身的图像通道。插件不替模型"看图"。
