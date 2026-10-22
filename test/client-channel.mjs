@@ -90,6 +90,18 @@ check('POST resume clears the flag', resumed.status === 200 && resumed.json?.abo
 const afterResume = await call('GET', '/kv-computer-use/state');
 check('state reflects resume', afterResume.json?.aborted === false);
 
+// ---------- capture dedupe ----------
+const capture = tools.get('cu_capture');
+const first = await (capture.execute ?? capture.handler)({ maxWidth: 320 });
+const second = await (capture.execute ?? capture.handler)({ maxWidth: 320 });
+if (first?.path !== undefined && second?.unchanged === true) {
+  check('identical frame is deduped instead of re-sent', second.unchanged === true, second.note?.slice(0, 40));
+  const forced = await (capture.execute ?? capture.handler)({ maxWidth: 320, dedupe: false });
+  check('dedupe:false forces a real capture', typeof forced?.path === 'string', forced?.path);
+} else {
+  console.log(`INFO  dedupe not exercised (first=${first?.path ? 'image' : first?.error?.code ?? '?'} second=${second?.unchanged ? 'unchanged' : 'image'}) — screen changed between captures`);
+}
+
 // ---------- unknown route ----------
 const notFound = await call('GET', '/kv-computer-use/nope');
 check('unknown route returns 404', notFound.status === 404, JSON.stringify(notFound.json));

@@ -115,6 +115,17 @@ try {
     check('write through that ref verifies', receipt.outcome === 'VERIFIED', receipt.outcome);
   }
 
+  // ---------- capture dedupe on a static region ----------
+  const region = { windowHandle, maxWidth: 400, regionX: 0, regionY: 0, regionWidth: 300, regionHeight: 24 };
+  const cap1 = await call('cu_capture', region);
+  await sleep(400);
+  const cap2 = await call('cu_capture', region);
+  check('first capture returns an image', typeof cap1?.path === 'string', cap1?.shotHash?.slice(0, 10));
+  check('identical region is deduped instead of re-sent', cap2?.unchanged === true,
+    cap2?.unchanged ? cap2.note?.slice(0, 40) : `second=${cap2?.path ? 'image' : cap2?.error?.code}`);
+  const forcedCapture = await call('cu_capture', { ...region, dedupe: false });
+  check('dedupe:false still returns an image', typeof forcedCapture?.path === 'string', forcedCapture?.shotHash?.slice(0, 10));
+
   // ---------- OCR fallback ----------
   const off = await call('cu_observe', { windowHandle, maxElements: 200, maxDepth: 10, autoOcr: 'off' });
   check('autoOcr=off attaches no ocr block', off.ocr === undefined);

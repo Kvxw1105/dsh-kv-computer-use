@@ -73,6 +73,29 @@ while ($true) {
             'fg' {
                 Reply @{ id = $id; ok = $true; result = [KvCuInput]::ForegroundHandle() }
             }
+            'procinfo' {
+                # Process identity facts for the freshness boundary: a pid can be
+                # reused, so the executable path is what actually pins the process.
+                $targetPid = [int]$req.pid
+                $proc = Get-Process -Id $targetPid -ErrorAction SilentlyContinue
+                if ($null -eq $proc) {
+                    Reply @{ id = $id; ok = $true; result = @{ found = $false; pid = $targetPid } }
+                }
+                else {
+                    $exe = $null
+                    try { $exe = $proc.Path } catch { }
+                    $started = $null
+                    try { $started = $proc.StartTime.ToUniversalTime().ToString('o') } catch { }
+                    Reply @{ id = $id; ok = $true; result = @{
+                            found     = $true
+                            pid       = $targetPid
+                            exePath   = $exe
+                            startedAt = $started
+                            name      = $proc.ProcessName
+                        }
+                    }
+                }
+            }
             'ping' {
                 Reply @{ id = $id; ok = $true; result = 'pong' }
             }

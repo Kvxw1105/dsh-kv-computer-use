@@ -97,13 +97,17 @@ const expired = await invoke('cu_act', {
 check('act citing unknown observation: refused', expired?.outcome === 'HALTED_BEFORE_EFFECT', expired?.error?.code);
 
 // ---------- credential field guard ----------
+// Cite a non-existent observation so this is refused BEFORE any keystroke is
+// synthesised. A test must never be able to type into the user's foreground window.
 const pw = await invoke('cu_act', {
   action: 'type',
-  reason: 'harness: credential field',
+  reason: 'harness: typing must be refused without a valid observation',
   text: 'hunter2',
-  observationId: obsId,
+  observationId: 'obs_not_real',
 });
-check('act typing without target window: refused', pw?.outcome === 'HALTED_BEFORE_EFFECT', pw?.error?.code);
+check('act typing is refused without a valid observation',
+  pw?.outcome === 'HALTED_BEFORE_EFFECT' && pw?.error?.code === 'NO_OBSERVATION',
+  `${pw?.error?.code}: ${pw?.error?.message?.slice(0, 50)}`);
 
 // ---------- abort switch ----------
 const stop = await invoke('cu_abort', { reason: 'harness stop' });
