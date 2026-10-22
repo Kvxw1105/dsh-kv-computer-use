@@ -103,6 +103,24 @@ await new Promise((r) => setTimeout(r, 20));
 const stale = expired.compare(entryExpired, { targetWindow: { ...window, elements: treeB } });
 check('compare: ttl expiry fails', stale.ok === false && stale.reason === 'OBSERVATION_EXPIRED', stale.detail);
 
+// ---------- expired but unchanged: distinguishable from changed ----------
+const expiredStore = new FreshnessStore({ ttlMs: 1 });
+const expiredEntry = expiredStore.record(observation);
+await new Promise((r) => setTimeout(r, 20));
+
+const expiredSame = expiredStore.compare(expiredEntry, { targetWindow: { ...window, elements: treeB } });
+check('expired + identical content is flagged unchanged',
+  expiredSame.ok === false && expiredSame.reason === 'OBSERVATION_EXPIRED' && expiredSame.unchanged === true,
+  `reason=${expiredSame.reason} unchanged=${expiredSame.unchanged}`);
+check('expired comparison still reports both fingerprints',
+  expiredSame.checks.identity?.ok === true && expiredSame.checks.tree?.ok === true,
+  `identity=${expiredSame.checks.identity?.ok} tree=${expiredSame.checks.tree?.ok}`);
+
+const expiredChanged = expiredStore.compare(expiredEntry, { targetWindow: { ...window, elements: treeC } });
+check('expired + changed content is NOT flagged unchanged',
+  expiredChanged.unchanged !== true && expiredChanged.checks.tree?.ok === false,
+  `tree=${expiredChanged.checks.tree?.ok}`);
+
 // ---------- freshness: latest / cap ----------
 const small = new FreshnessStore({ ttlMs: 5000 });
 for (let i = 0; i < 80; i += 1) small.record({ observationId: `obs_${i}`, targetWindow: { ...window, elements: treeA } });

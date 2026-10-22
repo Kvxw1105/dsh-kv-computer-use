@@ -117,8 +117,10 @@ try {
 
   // ---------- capture dedupe on a static region ----------
   const region = { windowHandle, maxWidth: 400, regionX: 0, regionY: 0, regionWidth: 300, regionHeight: 24 };
+  // Take the pair back to back: the fixture title bar is static, but any delay
+  // long enough to let a repaint (focus ring, caret, clock) through breaks the
+  // comparison and would be an environment effect, not a dedupe failure.
   const cap1 = await call('cu_capture', region);
-  await sleep(400);
   const cap2 = await call('cu_capture', region);
   check('first capture returns an image', typeof cap1?.path === 'string', cap1?.shotHash?.slice(0, 10));
   check('identical region is deduped instead of re-sent', cap2?.unchanged === true,
