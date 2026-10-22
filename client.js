@@ -152,10 +152,33 @@ window.__ModuleLoader__.load({
         cursor: 'pointer',
       };
 
+      // Page-level glow: an inset shadow around the viewport, so the user can see
+      // from the corner of their eye that the desktop is being driven. It is a
+      // non-interactive overlay inside this app's own page — it does not create a
+      // window, does not steal focus, and never appears in a screenshot of the
+      // target application.
+      const glow = active
+        ? h('div', {
+          'aria-hidden': true,
+          style: {
+            position: 'fixed',
+            inset: 0,
+            pointerEvents: 'none',
+            zIndex: 1,
+            boxShadow: 'inset 0 0 0 3px rgba(255,140,40,0.85), inset 0 0 28px 6px rgba(255,140,40,0.25)',
+            transition: 'opacity 160ms ease',
+            animation: 'kvcu-glow 2.2s ease-in-out infinite',
+          },
+        })
+        : null;
+
       return h(
         'div',
         { role: 'status', 'aria-live': 'polite', style: container },
-        h('style', null, '@keyframes kvcu-pulse{0%,100%{opacity:.35}50%{opacity:1}}'),
+        glow,
+        h('style', null,
+          '@keyframes kvcu-pulse{0%,100%{opacity:.35}50%{opacity:1}}'
+          + '@keyframes kvcu-glow{0%,100%{opacity:.55}50%{opacity:1}}'),
         h('span', { style: dot }),
         h('span', null, aborted
           ? '电脑操作已停止'

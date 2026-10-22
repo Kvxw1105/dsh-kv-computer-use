@@ -128,6 +128,22 @@ await new Promise((r) => setTimeout(r, 20));
 const stale = expired.compare(entryExpired, { targetWindow: { ...window, elements: treeB } });
 check('compare: ttl expiry fails', stale.ok === false && stale.reason === 'OBSERVATION_EXPIRED', stale.detail);
 
+// ---------- geometry flag: coordinates vs element refs ----------
+const geoEntry = store.record(observation);
+const geoMoved = store.compare(geoEntry, {
+  targetWindow: { ...window, bounds: { x: 300, y: 200, width: 800, height: 600 }, elements: treeA },
+});
+check('geometry flag: window move is reported',
+  geoMoved.checks.geometry?.ok === false,
+  JSON.stringify(geoMoved.checks.geometry));
+check('geometry flag: identity and tree still pass on a pure move',
+  geoMoved.ok === true && geoMoved.checks.tree?.ok === true);
+
+const geoStill = store.compare(geoEntry, {
+  targetWindow: { ...window, bounds: { x: 0, y: 0, width: 800, height: 600 }, elements: treeA },
+});
+check('geometry flag: unchanged rectangle is ok', geoStill.checks.geometry?.ok === true);
+
 // ---------- expired but unchanged: distinguishable from changed ----------
 const expiredStore = new FreshnessStore({ ttlMs: 1 });
 const expiredEntry = expiredStore.record(observation);
