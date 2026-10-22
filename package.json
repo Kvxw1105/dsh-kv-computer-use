@@ -1,6 +1,6 @@
 {
   "name": "dsh-kv-computer-use",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Transactional computer use for DeepSeek Harness on Windows: five-state outcomes, freshness boundary with pid+exe identity, guards, element search, background write (ValuePattern/WM_SETTEXT), UIA text reading, OCR fallback, resident input daemon, and a Web UI dock with Esc stop.",
   "type": "module",
   "main": "lib/index.js",
@@ -39,5 +39,22 @@
     "@deepseek-ai/cordis": "^4.0.0",
     "@deepseek-ai/dsh-tools": "*"
   },
-  "dependencies": {}
+  "dependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Kvxw1105/dsh-kv-computer-use.git"
+  },
+  "homepage": "https://github.com/Kvxw1105/dsh-kv-computer-use#readme",
+  "bugs": {
+    "url": "https://github.com/Kvxw1105/dsh-kv-computer-use/issues"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "computer-use",
+    "windows",
+    "uia",
+    "automation"
+  ]
 }

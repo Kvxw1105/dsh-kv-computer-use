@@ -134,7 +134,21 @@ cd D:\Projects\dsh-kv-computer-use && npm pack
 dsh plugin --profile desktop add ./dsh-kv-computer-use-0.1.0.tgz
 ```
 
-驱动查找顺序：`KV_CU_DRIVER` 环境变量 → `~/.cache/dsh-kv-computer-use/kv-windows-uia-driver.exe` → 本机 KV Computer Use 仓库的 `publish` 目录。找不到时 `cu_status` 会明确报 `DRIVER_NOT_FOUND`。
+驱动查找顺序（包内不含任何个人路径）：
+
+1. `KV_CU_DRIVER` —— 精确指向 `kv-windows-uia-driver.exe`
+2. `~/.cache/dsh-kv-computer-use/kv-windows-uia-driver.exe`
+3. `~/.cache/dsh-kv-computer-use/driver.path` —— **首次定位成功后自动写入的指针**，因此检出目录搬走后仍然可用
+4. `KV_CU_DRIVER_SEARCH` —— 分号分隔的搜索根，每个根都试 `<root>/kv-windows-uia-driver.exe` 和 `<root>/apps/windows-uia-driver/publish/kv-windows-uia-driver.exe`
+
+首次使用建议：
+
+```bash
+# Windows (PowerShell)
+$env:KV_CU_DRIVER_SEARCH = "D:\path	o\kv-browser-bridge-action-seq"; dsh
+```
+
+找不到时 `cu_status` 报 `DRIVER_NOT_FOUND`，不会静默降级。
 
 ## 验证
 

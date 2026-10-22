@@ -4,9 +4,8 @@ Third-party notices
 Windows UIA execution engine (kv-windows-uia-driver.exe)
 --------------------------------------------------------
 This plugin spawns the prebuilt driver produced by the KV Computer Use project
-(D:\Users\kvxkf\Documents\自动化发布社媒工作空间\kv-browser-bridge-action-seq-20260811,
-apps/windows-uia-driver). The driver is not bundled here; it is discovered at
-runtime and reused as-is.
+(apps/windows-uia-driver in that repository). The driver is not bundled here;
+it is discovered at runtime and reused as-is.
 
 Upstream license: MIT
 Copyright (c) 2026 Fineguide.AI
