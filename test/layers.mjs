@@ -83,8 +83,33 @@ check('record: captures tree hash', entry.treeHash === hashTree(treeA));
 const same = store.compare(entry, { observationId: 'obs_b', targetWindow: { ...window, elements: treeB }, shotHash: 'shot1' }, { freshShot: 'shot1' });
 check('compare: unchanged window passes', same.ok === true, JSON.stringify(same.checks.tree));
 
-const moved = store.compare(entry, { targetWindow: { ...window, bounds: { x: 0, y: 0, width: 900, height: 600 } } });
-check('compare: geometry change fails', moved.ok === false && moved.reason === 'WINDOW_CHANGED', moved.detail);
+// Geometry is NOT part of the identity hash: a virtual monitor connecting or a
+// resolution switch rewrites every window's bounds at once, and treating that as
+// "a different window" would refuse every action right after a display change.
+// A window that merely moved keeps the same identity; its element bounds still
+// change, which the tree fingerprint catches.
+// Same tree, different window rectangle: identity holds, tree is unchanged.
+const moved = store.compare(entry, {
+  targetWindow: { ...window, bounds: { x: 0, y: 0, width: 900, height: 600 }, elements: treeA },
+});
+check('compare: geometry-only change does not break identity', moved.ok === true,
+  `ok=${moved.ok} reason=${moved.reason ?? '-'}`);
+
+const otherProcess = store.compare(entry, { targetWindow: { ...window, processId: 999 } });
+check('compare: a different process still fails identity',
+  otherProcess.ok === false && otherProcess.reason === 'WINDOW_CHANGED', otherProcess.detail);
+
+const otherTitle = store.compare(entry, { targetWindow: { ...window, name: 'Somewhere Else' } });
+check('compare: a different window title still fails identity',
+  otherTitle.ok === false && otherTitle.reason === 'WINDOW_CHANGED', otherTitle.detail);
+
+// A display change that also repaints the content is caught by the tree, not identity.
+const displayShift = store.compare(
+  entry,
+  { targetWindow: { ...window, bounds: { x: 0, y: 0, width: 900, height: 600 }, elements: treeC } },
+);
+check('compare: display shift plus real content change is still refused',
+  displayShift.ok === false && displayShift.reason === 'TREE_CHANGED', displayShift.detail);
 
 const rebuilt = store.compare(entry, { targetWindow: { ...window, elements: treeC } });
 check('compare: tree change fails', rebuilt.ok === false && rebuilt.reason === 'TREE_CHANGED', rebuilt.detail);
