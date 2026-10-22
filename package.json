@@ -1,6 +1,6 @@
 {
   "name": "dsh-kv-computer-use",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Transactional computer use for DeepSeek Harness on Windows: five-state outcomes, freshness boundary with pid+exe identity, guards, element search, background write (ValuePattern/WM_SETTEXT), UIA text reading, OCR fallback, resident input daemon, and a Web UI dock with Esc stop.",
   "type": "module",
   "main": "lib/index.js",

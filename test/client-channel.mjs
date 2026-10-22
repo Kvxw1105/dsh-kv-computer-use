@@ -102,6 +102,16 @@ if (first?.path !== undefined && second?.unchanged === true) {
   console.log(`INFO  dedupe not exercised (first=${first?.path ? 'image' : first?.error?.code ?? '?'} second=${second?.unchanged ? 'unchanged' : 'image'}) — screen changed between captures`);
 }
 
+// ---------- recent window keeps the result visible ----------
+const recentState = await call('GET', '/kv-computer-use/state');
+check('state carries a recent flag', typeof recentState.json?.activity?.recent === 'boolean',
+  `recent=${recentState.json?.activity?.recent}`);
+check('state carries the recent window length', recentState.json?.activity?.recentMs === 8000,
+  String(recentState.json?.activity?.recentMs));
+check('state carries the last outcome for display',
+  recentState.json?.activity?.lastOutcome === undefined || typeof recentState.json?.activity?.lastOutcome === 'string',
+  String(recentState.json?.activity?.lastOutcome));
+
 // ---------- unknown route ----------
 const notFound = await call('GET', '/kv-computer-use/nope');
 check('unknown route returns 404', notFound.status === 404, JSON.stringify(notFound.json));

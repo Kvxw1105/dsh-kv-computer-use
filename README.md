@@ -72,6 +72,8 @@ Web UI 半在输入框下方的 `conversation.composer.dock` 里放一条状态�
 - 停止后状态行变成「电脑操作已停止 / 继续」，点继续或再按 Esc 恢复
 - 颜色继承主题（`currentColor` + `color-mix`），不硬编码品牌色；计时器、监听器全部在 unmount 时清理
 
+状态行在三种状态下都可见：**运行中**（带计时）、**已停止**、以及**动作完成后 8 秒内**（显示 `已验证` / `已执行·未验证` / `已拦截` / `需人工核对` / `失败`）。没有这个尾窗，一个 300ms 的动作永远来不及被看见。
+
 Esc 只在动作进行中拦截，其他时候保持应用原有的 Esc 语义。
 
 client 半通过 host 路由通信：`GET /kv-computer-use/state`（活动状态 + 急停标志）、`POST /kv-computer-use/abort`、`POST /kv-computer-use/resume`。**新增 host 半与 client 半都需要重启宿主才生效。**

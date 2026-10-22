@@ -19,7 +19,7 @@ window.__ModuleLoader__.load({
     const React = require('react');
     const h = React.createElement;
 
-    const POLL_MS = 1200;
+    const POLL_MS = 700;
 
     const LABELS = {
       invoke_ref: '点击控件',
@@ -92,13 +92,27 @@ window.__ModuleLoader__.load({
       }, [active, aborted, setState]);
 
       if (!state) return null;
-      if (!active && !aborted) return null;
 
-      const actionType = state.activity?.action;
+      const recent = state.activity?.recent === true;
+      // Visible while running, while stopped, and briefly after finishing. Staying
+      // up for a few seconds is what makes the outcome observable at all — a single
+      // fast action would otherwise never be seen.
+      if (!active && !aborted && !recent) return null;
+
+      const actionType = state.activity?.action ?? state.activity?.lastAction;
       const label = LABELS[actionType] ?? actionType ?? '操作';
       const seconds = active && state.activity?.startedAt
         ? Math.max(0, Math.round((Date.now() - state.activity.startedAt) / 100) / 10)
         : undefined;
+
+      const lastOutcome = state.activity?.lastOutcome;
+      const outcomeText = {
+        VERIFIED: '已验证',
+        COMPLETED_UNVERIFIED: '已执行·未验证',
+        HALTED_BEFORE_EFFECT: '已拦截',
+        RECONCILIATION_REQUIRED: '需人工核对',
+        FAILED: '失败',
+      }[lastOutcome] ?? lastOutcome;
 
       const container = {
         display: 'flex',
@@ -145,15 +159,19 @@ window.__ModuleLoader__.load({
         h('span', { style: dot }),
         h('span', null, aborted
           ? '电脑操作已停止'
-          : `正在操作电脑 · ${label}${seconds !== undefined ? ` · ${seconds}s` : ''} · 按 Esc 停止`),
-        h('button', {
-          type: 'button',
-          style: button,
-          onClick: () => {
-            const route = aborted ? 'resume' : 'abort';
-            void post(route).then(() => setState((prev) => (prev ? { ...prev, aborted: !aborted } : prev)));
-          },
-        }, aborted ? '继续' : '停止'),
+          : active
+            ? `正在操作电脑 · ${label}${seconds !== undefined ? ` · ${seconds}s` : ''} · 按 Esc 停止`
+            : `电脑操作 · ${label} · ${outcomeText ?? '已完成'}`),
+        (active || aborted)
+          ? h('button', {
+            type: 'button',
+            style: button,
+            onClick: () => {
+              const route = aborted ? 'resume' : 'abort';
+              void post(route).then(() => setState((prev) => (prev ? { ...prev, aborted: !aborted } : prev)));
+            },
+          }, aborted ? '继续' : '停止')
+          : null,
       );
     }
 
