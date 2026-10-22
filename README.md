@@ -48,6 +48,19 @@ DeepSeek Harness 的 Windows 电脑操控插件。设计目标不是"再加一�
 
 这条链让"没有 value 字段的控件"不再是盲区：`cu_observe` 看不到内容时，`cu_read` 能拿到文本，而且不依赖屏幕渲染（锁屏、遮挡、远程桌面下依然有效）。
 
+## 人机共处（v0.6.0）
+
+Web UI 半在输入框下方的 `conversation.composer.dock` 里放一条状态行：
+
+- 动作执行中显示「正在操作电脑 · 点击控件 · 3.2s · 按 Esc 停止」
+- **Esc 立即急停**：host 在下一个写动作进入前就拒绝它（`HALTED_BEFORE_EFFECT`），不是等当前步骤跑完
+- 停止后状态行变成「电脑操作已停止 / 继续」，点继续或再按 Esc 恢复
+- 颜色继承主题（`currentColor` + `color-mix`），不硬编码品牌色；计时器、监听器全部在 unmount 时清理
+
+Esc 只在动作进行中拦截，其他时候保持应用原有的 Esc 语义。
+
+client 半通过 host 路由通信：`GET /kv-computer-use/state`（活动状态 + 急停标志）、`POST /kv-computer-use/abort`、`POST /kv-computer-use/resume`。**新增 host 半与 client 半都需要重启宿主才生效。**
+
 ## 观察层（v0.5.0）
 
 **按条件找元素，不要整棵树**。`cu_find` 在目标窗口里按字段搜索，返回命中元素的短引用和 observationId——这些 ref 可以直接喂给 `cu_act`，不需要再 observe 一次。九个元素的窗口里找按钮，比读全树省一个数量级的 token。
@@ -117,6 +130,7 @@ node test/live-settext.mjs  # WinForms 夹具：无 ValuePattern → WM_SETTEXT 
 node test/live-type.mjs     # 焦点守卫 + 前台锁行为（诚实报告未验证）
 node test/latency.mjs       # 输入层一次性 vs 守护进程延迟对比
 node test/observe.mjs       # cu_find 搜索 + OCR 兜底触发判据
+node test/client-channel.mjs # Web UI 通道：state / abort / resume / 停止真的阻断动作
 ```
 
 `live*.mjs` 只操作自己启动的夹具窗口（`test/fixture-wpf.ps1` / `test/fixture.ps1`），用完按 pid 关掉，绝不碰用户的编辑器或其他窗口。

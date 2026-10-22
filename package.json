@@ -1,13 +1,14 @@
 {
   "name": "dsh-kv-computer-use",
-  "version": "0.5.0",
-  "description": "Transactional computer use for DeepSeek Harness on Windows: five-state outcomes, freshness boundary, guards, element search, background write (ValuePattern/WM_SETTEXT), UIA text reading, OCR fallback, resident input daemon, toolset presets.",
+  "version": "0.6.0",
+  "description": "Transactional computer use for DeepSeek Harness on Windows: five-state outcomes, freshness boundary, guards, element search, background write (ValuePattern/WM_SETTEXT), UIA text reading, OCR fallback, resident input daemon, and a Web UI dock with Esc stop.",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
     ".": {
       "default": "./lib/index.js"
     },
+    "./client": "./client.js",
     "./package.json": "./package.json"
   },
   "engines": {
@@ -16,10 +17,18 @@
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ]
     }
   },
   "files": [
     "lib/",
+    "client.js",
     "cordis.patch.yml",
     "README.md",
     "LICENSE",
