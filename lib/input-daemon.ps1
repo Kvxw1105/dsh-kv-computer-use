@@ -66,6 +66,11 @@ while ($true) {
                 $button = if ($req.button) { [string]$req.button } else { 'left' }
                 Reply @{ id = $id; ok = $true; result = [KvCuInput]::ClickPoint([int]$req.x, [int]$req.y, $button) }
             }
+            'clickbg' {
+                $button = if ($req.button) { [string]$req.button } else { 'left' }
+                $okBg = [KvCuInput]::ClickWindow([long]$req.hwnd, [int]$req.x, [int]$req.y, $button)
+                Reply @{ id = $id; ok = $true; result = $okBg }
+            }
             'scroll' {
                 $horizontal = [bool]$req.horizontal
                 Reply @{ id = $id; ok = $true; result = [KvCuInput]::Scroll([int]$req.notches, $horizontal) }
