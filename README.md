@@ -48,6 +48,12 @@ DeepSeek Harness 的 Windows 电脑操控插件。设计目标不是"再加一�
 
 这条链让"没有 value 字段的控件"不再是盲区：`cu_observe` 看不到内容时，`cu_read` 能拿到文本，而且不依赖屏幕渲染（锁屏、遮挡、远程桌面下依然有效）。
 
+## 输出必须是 lossless JSON（v1.0.1）
+
+harness 对工具返回值有一条硬约束：任何一个 `undefined` 字段都会让整条结果被拒（`value is not lossless JSON`），工具在运行时就等于不可用——而 `undefined` 在日志里是看不见的，单元断言也照常通过。
+
+所以注册层统一包了一层 `clean()`：递归丢弃 `undefined`，保留 `null`（`null` 在这里有语义）。`test/output-shape.mjs` 对每个工具做 JSON 往返比对，专门守这条线。
+
 ## 设计取舍（明确不做的）
 
 这几个是市场插件里有、我们**主动不做**的机制，不是遗漏：
