@@ -1,7 +1,7 @@
 {
   "name": "dsh-kv-computer-use",
-  "version": "0.2.0",
-  "description": "Transactional computer use for DeepSeek Harness on Windows: five-state outcomes, freshness boundary (identity+tree+pixel), credential and dangerous-target guards, background-first input, toolset presets, plus OCR and multi-monitor placement.",
+  "version": "0.3.0",
+  "description": "Transactional computer use for DeepSeek Harness on Windows: five-state outcomes, freshness boundary, credential/dangerous-target guards, background write with WM_SETTEXT fallback, UIA text reading, OCR, toolset presets, multi-monitor placement.",
   "type": "module",
   "main": "lib/index.js",
   "exports": {

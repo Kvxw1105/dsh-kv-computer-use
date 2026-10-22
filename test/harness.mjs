@@ -41,8 +41,8 @@ const ctx = {
 apply(ctx, { toolset: 'core' });
 
 console.log(`registered: ${[...tools.keys()].join(', ')}`);
-check('core toolset registers seven tools', tools.size === 7, `${tools.size} tools`);
-for (const required of ['cu_status', 'cu_observe', 'cu_capture', 'cu_ocr', 'cu_act', 'cu_abort', 'cu_guard']) {
+check('core toolset registers eight tools', tools.size === 8, `${tools.size} tools`);
+for (const required of ['cu_status', 'cu_observe', 'cu_capture', 'cu_ocr', 'cu_read', 'cu_act', 'cu_abort', 'cu_guard']) {
   check(`tool present: ${required}`, tools.has(required));
 }
 check('full-only tools skipped in core', !tools.has('cu_sequence') && !tools.has('cu_receipts'));

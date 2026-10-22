@@ -12,9 +12,9 @@ DeepSeek Harness 的 Windows 电脑操控插件。设计目标不是"再加一�
 
 本插件 = 那套契约 + 缺的那几层 + DSH 原生工具面。
 
-## 工具（core 7 / full 11）
+## 工具（core 8 / full 12）
 
-默认 `toolset: 'core'` 只注册 7 个工具，省上下文；需要编排与多屏时把配置改成 `full`。
+默认 `toolset: 'core'` 只注册 8 个工具，省上下文；需要编排与多屏时把配置改成 `full`。
 
 | 工具 | 组 | 作用 |
 |---|---|---|
@@ -22,6 +22,7 @@ DeepSeek Harness 的 Windows 电脑操控插件。设计目标不是"再加一�
 | `cu_observe` | core | 窗口列表 + 无障碍树，短引用 `uia:rN`，绑 `observationId`，记录身份与树指纹 |
 | `cu_capture` | core | 窗口/显示器/区域截图存盘，PrintWindow 后台优先，顺带回填像素指纹 |
 | `cu_ocr` | core | WinRT OCR，行级 + 词级像素坐标（中文可用） |
+| `cu_read` | core | 读控件文本：TextPattern → ValuePattern → WM_GETTEXT，不依赖渲染 |
 | `cu_act` | core | **统一动作入口**：invoke / set_value / type / hotkey / click / scroll / focus / wait |
 | `cu_abort` | core | 急停开关；置位后所有写动作 `HALTED_BEFORE_EFFECT`，只读工具照常 |
 | `cu_guard` | core | 解释守卫：作用域、TTL、指纹、急停状态；可测试某个标签是否危险/是否凭据字段 |
@@ -29,6 +30,22 @@ DeepSeek Harness 的 Windows 电脑操控插件。设计目标不是"再加一�
 | `cu_monitors` | full | 显示器列表 + 推荐 agent 屏 |
 | `cu_place_window` | full | 把窗口投到 agent 屏，**不激活** |
 | `cu_receipts` | full | 回读收据 |
+
+## 写入与读取的降级链（v0.3.0）
+
+**写入**（`cu_act` 的 `set_value`）
+1. UIA `ValuePattern` — WPF、Win32 Edit、多数 UWP 控件
+2. `WM_SETTEXT` — 仅有 TextPattern 的控件（WinForms TextBox、部分 Electron/Chromium 输入框）。定位到控件自己的原生句柄，直接发消息，**不抢焦点、不敲键盘**；写完立即 `InvalidateRect`/`UpdateWindow`/`RedrawWindow`，否则 WinForms 不重绘、屏幕上看不到
+3. 都不可用时保留原始 `PATTERN_UNAVAILABLE` 错误，不伪造成功
+
+写入成功的证据优先用**原生读回**（`WM_GETTEXT`），比 UIA 间接查更快也更硬。
+
+**读取**（`cu_read`）
+1. `TextPattern` — 文档类控件
+2. `ValuePattern` — 表单字段
+3. `WM_GETTEXT` — 兜底，只要有原生句柄就能读
+
+这条链让"没有 value 字段的控件"不再是盲区：`cu_observe` 看不到内容时，`cu_read` 能拿到文本，而且不依赖屏幕渲染（锁屏、遮挡、远程桌面下依然有效）。
 
 ## 守卫与新鲜度（v0.2.0）
 
@@ -83,20 +100,26 @@ dsh plugin --profile desktop add ./dsh-kv-computer-use-0.1.0.tgz
 ## 验证
 
 ```bash
-node test/layers.mjs    # 守卫规则 + 新鲜度边界（纯逻辑，30+ 断言）
-node test/smoke.mjs     # driver 真机：status / observe / ref 映射 / postcondition / 收据
-node test/harness.mjs   # fake ctx 挂载：工具集、拒绝路径、急停、守卫自省
-node test/live.mjs      # 真机成功路径：自建 WPF 夹具窗口 → 后台写入 → value_equals 验证
+node test/layers.mjs        # 守卫规则 + 新鲜度边界（纯逻辑，43 断言）
+node test/smoke.mjs         # driver 真机：status / observe / ref 映射 / postcondition / 收据
+node test/harness.mjs       # fake ctx 挂载：工具集、拒绝路径、急停、守卫自省
+node test/live.mjs          # WPF 夹具：ValuePattern 后台写入 + value_equals
+node test/live-settext.mjs  # WinForms 夹具：无 ValuePattern → WM_SETTEXT 兜底 → 原生读回 + cu_read
 ```
 
-`live.mjs` 只操作自己启动的夹具窗口（`test/fixture-wpf.ps1`），用完按 pid 关掉，绝不碰用户的编辑器或其他窗口。
+`live*.mjs` 只操作自己启动的夹具窗口（`test/fixture-wpf.ps1` / `test/fixture.ps1`），用完按 pid 关掉，绝不碰用户的编辑器或其他窗口。
 
-实测（本机 Windows，2026-10-21）：后台 `set_value` 写入 WPF TextBox **229ms**，中文无碍，`value_equals` 判定 VERIFIED，capture 返回 `print-window`/`occlusionRisk=false`。
+实测（本机 Windows，2026-10-21/22）：
+- WPF TextBox 后台 `set_value` **229ms**，中文无碍，`value_equals` VERIFIED
+- WinForms TextBox（无 ValuePattern）走 `WM_SETTEXT` 兜底成功，原生读回 `WM-SETTEXT-测试-77`，outcome VERIFIED
+- capture 返回 `print-window` / `occlusionRisk=false`
+- 锁屏或远程会话下 PrintWindow 可能返回空白，OCR 不可用（`cu_read` 不受影响）
 
 ## 已知限制
 
 - 只支持 Windows。
-- **`set_value` 依赖 UIA ValuePattern**。WPF TextBox、Win32 Edit、多数 UWP 控件都有；**WinForms TextBox 只有 TextPattern**，会报 `does not expose ValuePattern`（实测）。这类控件要用 `type`（会抢焦点）。
+- `set_value` 优先 ValuePattern，失败自动退 `WM_SETTEXT`（覆盖 WinForms / 部分 Electron）。两者都没有时才会失败，并保留原始错误码。
+- `WM_SETTEXT` 需要控件有独立原生句柄；无句柄的合成控件（部分浏览器内部输入）仍要退 `type`（会抢焦点）。
 - 输入层每次调用约 **1.4 秒**（PowerShell 启动 + 加载缓存 DLL），DLL 首次编译约 0.4 秒。没有做常驻进程。
 - OCR 每张约 **1.9 秒**（PS 启动 + WinRT 解码）。
 - 像素级陈旧检测默认关闭（闪烁光标/动画会误报），可开 `staleCheckPixels: true` 用于静态界面。
