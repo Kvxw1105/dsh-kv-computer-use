@@ -12,6 +12,32 @@
 
 import { apply } from '../lib/index.js';
 
+// The harness itself snapshots tool results with snapshotJsonValue from
+// @deepseek-ai/dsh-util-values, which rejects far more than undefined (Date,
+// BigInt, function, symbol, Map, Set, array holes, cycles). Testing against the
+// real predicate is the only way to be sure a result will be accepted.
+let snapshotJsonValue;
+const CANDIDATES = [
+  '@deepseek-ai/dsh-util-values',
+  'file:///D:/DSH-rc2/packages/util/values/lib/index.js',
+];
+for (const candidate of CANDIDATES) {
+  try {
+    const mod = await import(candidate);
+    if (typeof mod.snapshotJsonValue === 'function') {
+      snapshotJsonValue = mod.snapshotJsonValue;
+      console.log(`using real snapshotJsonValue from ${candidate}`);
+      break;
+    }
+  } catch {
+    // try the next candidate
+  }
+}
+if (snapshotJsonValue === undefined) {
+  console.log('FATAL  could not load snapshotJsonValue; the harness predicate cannot be reproduced');
+  process.exit(1);
+}
+
 let failures = 0;
 const check = (label, condition, detail = '') => {
   if (condition) console.log(`PASS  ${label}${detail ? ` — ${detail}` : ''}`);
@@ -58,17 +84,17 @@ const call = async (name, args = {}) => {
 };
 
 const audit = (name, result) => {
+  // 1) the harness predicate
+  const snapshot = snapshotJsonValue(result);
   const hits = findUndefined(result);
-  check(`${name}: no undefined in result`, hits.length === 0, hits.slice(0, 3).join(', '));
-  let roundTrip;
-  try {
-    roundTrip = JSON.parse(JSON.stringify(result));
-  } catch (error) {
-    check(`${name}: result is serialisable`, false, String(error?.message ?? error));
-    return;
+  check(`${name}: accepted by snapshotJsonValue`, snapshot !== undefined,
+    snapshot === undefined ? `offending paths: ${hits.slice(0, 3).join(', ') || 'non-JSON value type'}` : 'lossless');
+  // 2) nothing was silently dropped
+  if (snapshot !== undefined) {
+    check(`${name}: no data lost in the snapshot`,
+      JSON.stringify(snapshot) === JSON.stringify(JSON.parse(JSON.stringify(result))),
+      'snapshot normalised something');
   }
-  check(`${name}: survives a JSON round-trip`, JSON.stringify(roundTrip) === JSON.stringify(result),
-    'undefined would differ here');
 };
 
 // ---------- tools that touch the desktop ----------
