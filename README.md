@@ -63,6 +63,14 @@ harness 对工具返回值有一条硬约束：任何一个 `undefined` 字段�
 - **主动视觉观察者**：不替模型截图→调视觉模型→描述→返回。插件只提供 `cu_capture` 的图片路径和 `cu_ocr` 的文本，用哪条通道由模型自己决定——多一层自动调用等于把成本藏起来。
 - **工具满天飞**：不做 20+ 工具。`core` 9 个、`full` 13 个，用 `set_value` 统一写入、`cu_act` 统一动作、`cu_find` 统一定位。
 
+## Shell 窗口不可驱动（v1.2.1）
+
+任务栏、桌面和输入法宿主不是普通应用窗口——它们由 explorer 和文本服务框架拥有。对它们调 `SetForegroundWindow`，或在负载下遍历它们的无障碍树，会喂养 Windows 的**前台锁**（本机 `ForegroundLockTimeout = 200000ms`）。一旦锁定，用户**连点击任务栏切换窗口都会失败**，而桌面快捷方式（启动新进程）不受影响——症状就是"桌面能点、任务栏点不出来"。
+
+`SHELL_WINDOW_CLASSES` 覆盖 `Shell_TrayWnd`、`Shell_SecondaryTrayWnd`、`Progman`、`WorkerW`、`OimeDirectUIWindow` 等；命中时 `cu_act` 直接拒绝，`cu_observe` 会在窗口上标 `shellSurface: true` 提示不要驱动它。
+
+同时 `focus_window` 加了 5 秒节流：同一窗口不重复申请前台权限，避免自己成为前台锁的第二个来源。
+
 ## 点击不再移动鼠标（v1.2.0）
 
 `click_point` 默认走**后台点击**：把屏幕坐标换算成目标窗口的客户区坐标，直接 `PostMessage` 发 `WM_LBUTTONDOWN/UP`。光标一动不动，焦点不切换，用户手上的鼠标该在哪还在哪。
